@@ -158,6 +158,6 @@ class PersonTracker:
         cv2.imshow('Tracking de Personas', frame)
 
 if __name__ == "__main__":
-    tracker = PersonTracker("Video1.mp4")
+    tracker = PersonTracker("Video8.mp4")
     tracker.track_persons()
  
