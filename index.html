@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Person Detection</title>
+    <style>
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            pointer-events: none;
+        }
+        video {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Person Detection with Webcam</h1>
+    <div style="position: relative; width: 640px; height: 480px;">
+        <video id="video" autoplay playsinline width="640" height="480" style="border: 1px solid black;"></video>
+        <canvas id="canvas" width="640" height="480"></canvas>
+    </div>
+    <button id="startDetection">Start Detection</button>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startDetectionButton = document.getElementById('startDetection');
+        const context = canvas.getContext('2d');
+
+        // Access the webcam
+        async function startVideo() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error('Error accessing webcam:', err);
+            }
+        }
+
+        // Draw bounding boxes
+        function drawBoundingBoxes(predictions) {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.lineWidth = 2;
+            context.strokeStyle = 'red';
+            context.font = '16px Arial';
+            context.fillStyle = 'red';
+
+            predictions.forEach(prediction => {
+                const [x, y, width, height] = prediction.bbox;
+                context.strokeRect(x, y, width, height);
+                context.fillText(prediction.class, x, y - 5);
+            });
+        }
+
+        // Capture frame and send for detection
+        async function detectPeople() {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataURL = canvas.toDataURL('image/jpeg');
+
+            try {
+                const response = await axios({
+                    method: 'POST',
+                    url: 'https://detect.roboflow.com/people-detection-o4rdr/8',
+                    params: {
+                        api_key: '0A38R8UDuFt11vAHykfS'
+                    },
+                    data: dataURL,
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                });
+
+                const predictions = response.data.predictions || [];
+                drawBoundingBoxes(predictions);
+            } catch (error) {
+                console.error('Detection error:', error);
+            }
+        }
+
+        // Continuous detection
+        let detectionInterval;
+        startDetectionButton.addEventListener('click', () => {
+            if (!detectionInterval) {
+                detectionInterval = setInterval(detectPeople, 500); // Detect every 500ms
+                startDetectionButton.textContent = 'Stop Detection';
+            } else {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+                startDetectionButton.textContent = 'Start Detection';
+                context.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+
+        // Start the video stream
+        startVideo();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</body>
+</html>
